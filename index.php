@@ -49,7 +49,7 @@ function result_payment_raypay($atts)
 	if (isset($_GET['invoiceID']))
 	{
 		$invoice_id = $_GET['invoiceID'];
-        $verify_endpoint = 'http://185.165.118.211:14000/raypay/api/v1/Payment/checkInvoice?pInvoiceID=' . $invoice_id;
+        $verify_endpoint = 'https://api.raypay.ir/raypay/api/v1/Payment/checkInvoice?pInvoiceID=' . $invoice_id;
         $data = array(
             'order' => '',
         );

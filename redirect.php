@@ -24,7 +24,7 @@ foreach ($options as $k => $v)
 
 $invoice_id = round(microtime(true)*1000) ;
 $redirect_url= get_site_url().'/'.$value['return'];
-$payment_endpoint = 'http://185.165.118.211:14000/raypay/api/v1/Payment/getPaymentTokenWithUserID';
+$payment_endpoint = 'https://api.raypay.ir/raypay/api/v1/Payment/getPaymentTokenWithUserID';
 $data = array(
     'amount' => strval($price),
     'invoiceID' => strval($invoice_id),
