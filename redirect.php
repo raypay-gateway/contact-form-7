@@ -24,7 +24,8 @@ foreach ($options as $k => $v)
 
 $invoice_id = round(microtime(true)*1000) ;
 $redirect_url= get_site_url().'/'.$value['return'];
-$payment_endpoint = 'https://api.raypay.ir/raypay/api/v1/Payment/getPaymentTokenWithUserID';
+$sandbox = $value['sandbox'] === 1;
+$payment_endpoint = 'https://api.raypay.ir/raypay/api/v1/Payment/pay';
 $data = array(
     'amount' => strval($price),
     'invoiceID' => strval($invoice_id),
@@ -35,7 +36,8 @@ $data = array(
     'mobile' => $user_mobile,
     'comment' => $description,
     'fullName' => $user_name,
-    'acceptorCode' => $value['raypay_acceptor_code']
+    'marketingID' => $value['raypay_marketing_id'],
+    'enableSandBox' => $sandbox
 );
 $headers = array(
     'Content-Type' => 'application/json',
@@ -54,8 +56,7 @@ $result = wp_remote_retrieve_body($response);
 $result = json_decode($result);
 if (isset($result->Data) )
 {
-    $access_token = $result->Data->Accesstoken;
-    $terminal_id = $result->Data->TerminalID;
+    $token = $result->Data;
     $wpdb->insert($wpdb->prefix."cf7raypay_transaction", $trans = array(
 			'idform'      => $postid,
 			'gateway'     => 'RayPay',
@@ -68,13 +69,8 @@ if (isset($result->Data) )
 			'transid'     => $invoice_id
 		), $schema = array('%d', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s'));
 
-        $PaymentForm =  '<p style="color:#ff0000; font:18px Tahoma; direction:rtl;">در حال اتصال به درگاه بانکی. لطفا صبر کنید ...</p>
-        <form name="frmRayPayPayment" method="post" action=" https://mabna.shaparak.ir:8080/Pay ">
-        <input type="hidden" name="TerminalID" value="' . $terminal_id . '" />
-        <input type="hidden" name="token" value="' . $access_token . '" />
-        <input class="submit" type="submit" value="پرداخت" /></form>
-       <script>document.frmRayPayPayment.submit();</script>';
-        echo $PaymentForm;
+    $link='https://my.raypay.ir/ipg?token=' . $token;
+    wp_redirect( $link );
 }
 else
 {

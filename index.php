@@ -46,19 +46,15 @@ function result_payment_raypay($atts)
     }
 
 
-	if (isset($_GET['invoiceID']))
+	if (isset($_POST))
 	{
-		$invoice_id = $_GET['invoiceID'];
-        $verify_endpoint = 'https://api.raypay.ir/raypay/api/v1/Payment/checkInvoice?pInvoiceID=' . $invoice_id;
-        $data = array(
-            'order' => '',
-        );
+        $verify_endpoint = 'https://api.raypay.ir/raypay/api/v1/Payment/verify';
         $headers = array(
             'Content-Type' => 'application/json',
         );
 
         $args = array(
-            'body' => json_encode($data),
+            'body' => json_encode($_POST),
             'headers' => $headers,
             'timeout' => 15,
         );
@@ -69,22 +65,24 @@ function result_payment_raypay($atts)
         $result = wp_remote_retrieve_body($response);
         $result = json_decode($result);
 
-		if (isset($result->Data) && $result->Data->State == 1)
+		if (isset($result->Data) && $result->Data->Status == 1)
 		{
-			$wpdb->update($wpdb->prefix.'cf7raypay_transaction', array('status' => 'success', 'transid' => $invoice_id), array('transid' => $invoice_id), array('%s', '%s'), array('%d'));
-			return CreateMessage_cf7("", "", '<b style="color:'.$value['sucess_color'].';">'.'<br>'.stripslashes(str_replace('[invoice_id]', $invoice_id, $Theme_Message)).'<b/>');
+            $verify_invoice_id = $result->Data->InvoiceID;
+			$wpdb->update($wpdb->prefix.'cf7raypay_transaction', array('status' => 'success', 'transid' => $verify_invoice_id), array('transid' => $verify_invoice_id), array('%s', '%s'), array('%d'));
+			return CreateMessage_cf7("", "", '<b style="color:'.$value['sucess_color'].';">'.'<br>'.stripslashes(str_replace('[invoice_id]', $verify_invoice_id, $Theme_Message)).'<b/>');
 		}
 		else
 		{
-			$wpdb->update($wpdb->prefix . 'cf7raypay_transaction', array('status' => 'error'), array('transid' => $invoice_id), array('%s'), array('%d'));
-			return CreateMessage_cf7("", "", '<b style="color:'.$value['error_color'].';">'.'<br>'.stripslashes(str_replace('[invoice_id]', $invoice_id, $theme_error_message)).'<b/>');
+            $verify_invoice_id = $result->Data->InvoiceID;
+			$wpdb->update($wpdb->prefix . 'cf7raypay_transaction', array('status' => 'error'), array('transid' => $verify_invoice_id), array('%s'), array('%d'));
+			return CreateMessage_cf7("", "", '<b style="color:'.$value['error_color'].';">'.'<br>'.stripslashes(str_replace('[invoice_id]', $verify_invoice_id, $theme_error_message)).'<b/>');
 		}
 	}
 	else
 	{
 		$message = 'Unexpected Error';
-		$wpdb->update($wpdb->prefix . 'cf7raypay_transaction', array('status' => 'cancel'), array('transid' => $_POST['RefNo']), array('%s'), array('%d'));
-		return CreateMessage_cf7("", "", '<b style="color:'.$value['error_color'].';">'.$message.'<br>'.stripslashes(str_replace('[invoice_id]', $_POST['RefNo'], $theme_error_message)).'<b/>');
+		$wpdb->update($wpdb->prefix . 'cf7raypay_transaction', array('status' => 'cancel'), array('transid' => $_POST['respmsg']), array('%s'), array('%d'));
+		return CreateMessage_cf7("", "", '<b style="color:'.$value['error_color'].';">'.$message.'<br>'.stripslashes(str_replace('[invoice_id]', $_POST['respmsg'], $theme_error_message)).'<b/>');
 	}
 }
 add_shortcode('result_payment_raypay', 'result_payment_raypay');
@@ -155,7 +153,8 @@ function cf7raypay_activate()
 	
 	$cf7raypay_options = array(
 		'raypay_user_id' => '',
-		'raypay_acceptor_code' => '',
+		'raypay_marketing_id' => '',
+        'sandbox' => '1',
 		'return' => '',
 		'error_color'=>'#f44336',
 		'sucess_color' => '#8BC34A',
@@ -440,7 +439,8 @@ if (is_plugin_active('contact-form-7/wp-contact-form-7.php'))
 		echo '<form method="post" action=' . $_SERVER["REQUEST_URI"] . ' enctype="multipart/form-data">';
 		if (isset($_POST['update'])) {
 			$options['raypay_user_id'] = sanitize_text_field($_POST['raypay_user_id']);
-			$options['raypay_acceptor_code'] = sanitize_text_field($_POST['raypay_acceptor_code']);
+			$options['raypay_marketing_id'] = sanitize_text_field($_POST['raypay_marketing_id']);
+            $options['sandbox']         = ( $_POST['sandbox'] === 'yes' ) ? 1 : 0;
 			$options['return'] = sanitize_text_field($_POST['return']);
 			$options['sucess_color'] = sanitize_text_field($_POST['sucess_color']);
 			$options['error_color'] = sanitize_text_field($_POST['error_color']);
@@ -455,6 +455,7 @@ if (is_plugin_active('contact-form-7/wp-contact-form-7.php'))
 		foreach ($options as $k => $v) {
 			$value[$k] = $v;
 		}
+        $checked         = ($options['sandbox'] == 1) ? 'checked' : '';
     	$theme_message = get_option('cf7raypay_theme_message', '');
 		$theme_error_message = get_option('cf7raypay_theme_error_message', '');
 		echo "<div class='wrap'><h2>Contact Form 7 - Gateway Settings</h2></div><br /><table width='90%'><tr><td>";
@@ -503,8 +504,16 @@ if (is_plugin_active('contact-form-7/wp-contact-form-7.php'))
 			<td>شناسه کاربری:</td><td><input type="text" style="width:450px;text-align:left;direction:ltr;" name="raypay_user_id" value="' . $value['raypay_user_id'] . '">الزامی</td>
 		</tr>
 		<tr>
-			<td>کد پذیرنده:</td><td><input type="text" style="width:450px;text-align:left;direction:ltr;" name="raypay_acceptor_code" value="' . $value['raypay_acceptor_code'] . '">الزامی</td>
+			<td>شناسه کسب و کار:</td><td><input type="text" style="width:450px;text-align:left;direction:ltr;" name="raypay_marketing_id" value="' . $value['raypay_marketing_id'] . '">الزامی</td>
 		</tr>
+		 <tr>
+            <td>
+                فعالسازی SandBox
+            </td>
+            <td>
+               <input type="checkbox" name="sandbox" id="sandbox" value="yes"   ' . $checked . '   />
+            </td>
+        </tr>
 		</table> 
 		<hr>
 		<table> 
@@ -528,7 +537,7 @@ if (is_plugin_active('contact-form-7/wp-contact-form-7.php'))
 			<br/>
 			متنی که میخواهید در هنگام موفقیت آمیز بودن تراکنش نشان دهید
 			<br/>
-			<b>از شورتکد [invoice_id] برای نمایش شماره ارجاع بانکی رای پی در قالب های نمایشی استفاده کنید</b>
+			<b>از شورتکد [invoice_id] برای نمایش شناسه ارجاع بانکی رای پی در قالب های نمایشی استفاده کنید</b>
 			</td>
 			<td></td>
 		</tr>
@@ -540,7 +549,7 @@ if (is_plugin_active('contact-form-7/wp-contact-form-7.php'))
 			<br/>
 			متنی که میخواهید در هنگام موفقیت آمیز نبودن تراکنش نشان دهید
 			<br/>
-			<b>از شورتکد [invoice_id] برای نمایش شماره ارجاع بانکی رای پی در قالب های نمایشی استفاده کنید</b>
+			<b>از شورتکد [invoice_id] برای نمایش شناسه ارجاع بانکی رای پی در قالب های نمایشی استفاده کنید</b>
 			</td>
 			<td></td>
 		</tr>

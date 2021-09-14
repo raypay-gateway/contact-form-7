@@ -18,11 +18,11 @@ After installing and enabling this plugin, you can create a custom form in which
 
 == Installation ==
 
-After creating a web service on https://raypay.ir and getting User ID and Acceptor Code, follow this instruction:
+After creating a web service on https://raypay.ir and getting User ID and Marketing ID, follow this instruction:
 
 1. Go to Contact.
 2. Click on RayPay Configuration.
-3. Enter your User ID and Acceptor Code.
+3. Enter your User ID and Marketing ID.
 4. After configuring the gateway, create a new contact form and add some field you want.
 5. Then go to "RayPay payment" tab and Enable Payment through RayPay gateway for that form.
 6. If you would like your customer pay a fixed amount, Select the "Predefined amount" checkbox and enter that amount in to opened text field. Also we provide a custom field so that a customer can enter their arbitrary amount in the field. This field is: [payment raypay_amount].
